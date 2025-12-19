@@ -1,12 +1,27 @@
-# Tauri + React + Typescript
+# RecordFlow (Windows) — Screen + Camera Recorder
+
+RecordFlow is a lightweight Windows desktop app (Tauri + React + Rust) for recording your screen with an optional camera overlay and microphone audio, saved as an `mp4`.
 
 ## Download (Windows)
 
-- [Download (.msi)](https://github.com/Waqar-743/Screen-and-Camera-Recording-app/releases/latest/download/tauri-02_0.1.0_x64_en-US.msi)
-- [Download (.exe)](https://github.com/Waqar-743/Screen-and-Camera-Recording-app/releases/latest/download/tauri-02_0.1.0_x64-setup.exe)
+These are **direct download** links (GitHub Releases). Clicking them downloads the installer to your PC:
 
-This template should help get you started developing with Tauri, React and Typescript in Vite.
+- **Windows Installer (.exe):** https://github.com/Waqar-743/Screen-and-Camera-Recording-app/releases/latest/download/tauri-02_0.1.0_x64-setup.exe
+- **Windows Installer (.msi):** https://github.com/Waqar-743/Screen-and-Camera-Recording-app/releases/latest/download/tauri-02_0.1.0_x64_en-US.msi
 
-## Recommended IDE Setup
+If a link shows `404`, publish a GitHub Release and upload assets with the exact filenames above.
 
-- [VS Code](https://code.visualstudio.com/) + [Tauri](https://marketplace.visualstudio.com/items?itemName=tauri-apps.tauri-vscode) + [rust-analyzer](https://marketplace.visualstudio.com/items?itemName=rust-lang.rust-analyzer)
+## Features
+
+- Screen recording (720p/1080p)
+- Optional camera overlay (position + size)
+- Microphone recording with volume control
+- Pause / resume / stop
+- Saves to `Documents/RecordFlow/Recordings` as `recording_YYYYMMDD_HHMMSS.mp4`
+
+## Development
+
+```bash
+npm install
+npm run tauri dev
+```
