@@ -42,3 +42,6 @@ tokio = { version = "1", features = ["time"] }
 # `decoding` is required for `Buffer::decode_image`.
 nokhwa = { version = "0.10.10", default-features = false, features = ["input-native", "decoding"] }
 
+[patch.crates-io]
+windows-capture = { path = "crates/windows-capture" }
+

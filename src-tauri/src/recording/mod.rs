@@ -5,3 +5,4 @@ pub mod manager;
 pub mod screen_capturer;
 pub mod status;
 pub mod video_encoder;
+pub mod video_encoder_mf;

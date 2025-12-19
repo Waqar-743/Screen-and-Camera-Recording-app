@@ -1,5 +1,6 @@
 use crate::error::RecorderError;
 use crate::recording::status::RecordingStatus;
+use crate::recording::audio_capturer::MicrophoneCapture;
 use crate::recording::camera_capturer::CameraCapturer;
 use crate::recording::compositor::FrameCompositor;
 use crate::recording::screen_capturer::ScreenCapturer;
@@ -162,31 +163,64 @@ impl RecordingManager {
                     crate::state::app_state::Resolution::P1080 => (1920, 1080),
                 };
 
+                let fps = settings.fps.max(1);
+
+                let mic = if settings.mic_enabled {
+                    match MicrophoneCapture::new(Some(settings.microphone_device.as_str())) {
+                        Ok(m) => Some(m),
+                        Err(e) => {
+                            eprintln!("RecordFlow: microphone init failed, continuing without mic: {e}");
+                            None
+                        }
+                    }
+                } else {
+                    None
+                };
+                let audio_cfg = mic.as_ref().map(|m| (m.sample_rate(), m.channels()));
+
                 let mut capturer = ScreenCapturer::new(settings.selected_display, w, h)?;
                 let mut encoder = VideoEncoder::new(
                     &output_path_for_thread,
                     w,
                     h,
-                    settings.fps.max(1),
+                    fps,
                     settings.bitrate.max(1),
+                    audio_cfg,
                 )?;
 
                 let mut camera = if settings.camera_enabled {
-                    Some(CameraCapturer::new(settings.selected_camera.clone())?)
+                    match CameraCapturer::new(settings.selected_camera.clone()) {
+                        Ok(c) => Some(c),
+                        Err(e) => {
+                            eprintln!("RecordFlow: camera init failed, continuing without camera: {e}");
+                            None
+                        }
+                    }
                 } else {
                     None
                 };
 
                 let _ = ready_tx.send(Ok(()));
 
-                let frame_time = Duration::from_millis(33);
+                let frame_time = Duration::from_secs_f64(1.0 / fps as f64);
+                let started_clock = Instant::now();
+                let mut paused_total = Duration::from_secs(0);
+                let mut pause_started: Option<Instant> = None;
                 while !stop_flag.load(Ordering::SeqCst) {
                     if pause_flag.load(Ordering::SeqCst) {
+                        if pause_started.is_none() {
+                            pause_started = Some(Instant::now());
+                        }
                         std::thread::sleep(Duration::from_millis(25));
                         continue;
                     }
 
+                    if let Some(p) = pause_started.take() {
+                        paused_total += p.elapsed();
+                    }
+
                     let tick = Instant::now();
+                    let elapsed_recording = tick.duration_since(started_clock).saturating_sub(paused_total);
                     let mut frame = capturer.capture_frame()?;
 
                     if let Some(cam) = camera.as_mut() {
@@ -203,7 +237,15 @@ impl RecordingManager {
                         )?;
                     }
 
-                    encoder.encode_frame(&frame.data)?;
+                    if let Some(mic) = mic.as_ref() {
+                        let sample_count = encoder
+                            .audio_samples_needed_for_elapsed(elapsed_recording)
+                            .unwrap_or(0);
+                        let audio_pcm = mic.take_pcm_bytes_le(sample_count, settings.mic_volume);
+                        encoder.encode_frame_with_audio(&frame.data, elapsed_recording, &audio_pcm)?;
+                    } else {
+                        encoder.encode_frame(&frame.data, elapsed_recording)?;
+                    }
 
                     let elapsed = tick.elapsed();
                     if elapsed < frame_time {

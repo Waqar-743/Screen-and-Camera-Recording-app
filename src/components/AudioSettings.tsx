@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { tauriService } from "../services/tauri.service";
 import type { AudioDeviceInfo } from "../types";
 import { SelectDropdown } from "./SelectDropdown";
@@ -39,6 +39,11 @@ export function AudioSettings({
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
 
+  const [micTestRecording, setMicTestRecording] = useState(false);
+  const [micTestUrl, setMicTestUrl] = useState<string | null>(null);
+  const [micTestError, setMicTestError] = useState<string | null>(null);
+  const micTestStreamRef = useRef<MediaStream | null>(null);
+
   useEffect(() => {
     let cancelled = false;
     (async () => {
@@ -63,6 +68,13 @@ export function AudioSettings({
     };
   }, []);
 
+  useEffect(() => {
+    return () => {
+      if (micTestUrl) URL.revokeObjectURL(micTestUrl);
+      micTestStreamRef.current?.getTracks().forEach((t) => t.stop());
+    };
+  }, [micTestUrl]);
+
   const micOptions = useMemo(
     () => micDevices.map((d) => ({ value: d.name, label: d.name })),
     [micDevices],
@@ -74,6 +86,71 @@ export function AudioSettings({
 
   const micValue = selectedMic || "";
   const sysValue = selectedSystemAudio || "";
+
+  const runMicTest = async () => {
+    setMicTestError(null);
+    if (micTestUrl) {
+      URL.revokeObjectURL(micTestUrl);
+      setMicTestUrl(null);
+    }
+
+    if (!navigator.mediaDevices?.getUserMedia) {
+      setMicTestError("Microphone test is not supported in this environment.");
+      return;
+    }
+
+    setMicTestRecording(true);
+    try {
+      // Best-effort: match selected mic by label once permission is granted.
+      let devices = await navigator.mediaDevices.enumerateDevices();
+      let desired = devices.find(
+        (d) => d.kind === "audioinput" && selectedMic && d.label === selectedMic,
+      );
+
+      if (!desired && selectedMic) {
+        const warmup = await navigator.mediaDevices.getUserMedia({ audio: true });
+        warmup.getTracks().forEach((t) => t.stop());
+        devices = await navigator.mediaDevices.enumerateDevices();
+        desired = devices.find(
+          (d) => d.kind === "audioinput" && d.label === selectedMic,
+        );
+      }
+
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: desired ? { deviceId: { exact: desired.deviceId } } : true,
+      });
+      micTestStreamRef.current = stream;
+
+      const chunks: BlobPart[] = [];
+      const mimeType = MediaRecorder.isTypeSupported("audio/webm;codecs=opus")
+        ? "audio/webm;codecs=opus"
+        : undefined;
+
+      const recorder = new MediaRecorder(
+        stream,
+        mimeType ? { mimeType } : undefined,
+      );
+
+      const blob = await new Promise<Blob>((resolve, reject) => {
+        recorder.ondataavailable = (e) => {
+          if (e.data && e.data.size > 0) chunks.push(e.data);
+        };
+        recorder.onerror = () => reject(new Error("Microphone test failed."));
+        recorder.onstop = () => resolve(new Blob(chunks, { type: recorder.mimeType }));
+        recorder.start();
+        window.setTimeout(() => recorder.stop(), 3000);
+      });
+
+      stream.getTracks().forEach((t) => t.stop());
+      micTestStreamRef.current = null;
+
+      setMicTestUrl(URL.createObjectURL(blob));
+    } catch (e) {
+      setMicTestError(String(e));
+    } finally {
+      setMicTestRecording(false);
+    }
+  };
 
   return (
     <section className="rf-card">
@@ -103,6 +180,21 @@ export function AudioSettings({
           onChange={(v) => onMicVolume(v / 100)}
           disabled={!micEnabled}
         />
+
+        <div className="rf-row" style={{ gap: 10, alignItems: "center" }}>
+          <button
+            type="button"
+            className="rf-btn rf-btn-secondary"
+            onClick={runMicTest}
+            disabled={micTestRecording}
+          >
+            {micTestRecording ? "Testing..." : "Test Microphone (3s)"}
+          </button>
+
+          {micTestUrl ? <audio controls src={micTestUrl} /> : null}
+        </div>
+
+        {micTestError ? <div className="rf-error">{micTestError}</div> : null}
       </div>
 
       <div className="rf-divider" />
