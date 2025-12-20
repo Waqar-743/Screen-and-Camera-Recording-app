@@ -5,7 +5,10 @@ import react from "@vitejs/plugin-react";
 const host = process.env.TAURI_DEV_HOST;
 
 // https://vite.dev/config/
-export default defineConfig(async () => ({
+export default defineConfig(async ({ command }) => ({
+  // In packaged apps the frontend is loaded from the filesystem/custom protocol;
+  // relative asset URLs avoid broken loads that can look like an endless spinner.
+  base: command === "build" ? "./" : "/",
   plugins: [react()],
 
   // Vite options tailored for Tauri development and only applied in `tauri dev` or `tauri build`
