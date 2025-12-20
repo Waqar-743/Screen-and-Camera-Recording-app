@@ -111,7 +111,17 @@ async function invoke<T>(cmd: string, args?: any): Promise<T> {
     
     return undefined as unknown as T;
   }
-  return tauriInvoke<T>(cmd, args);
+
+  const timeoutMs = 10_000;
+  return await Promise.race([
+    tauriInvoke<T>(cmd, args),
+    new Promise<T>((_, reject) =>
+      window.setTimeout(
+        () => reject(new Error(`Tauri IPC timed out after ${timeoutMs}ms (command: ${cmd})`)),
+        timeoutMs,
+      ),
+    ),
+  ]);
 }
 
 export const tauriService = {

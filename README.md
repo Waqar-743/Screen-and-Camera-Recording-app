@@ -6,10 +6,10 @@ RecordFlow is a lightweight Windows desktop app (Tauri + React + Rust) for recor
 
 Download the latest Windows installer from GitHub Releases:
 
-- Windows (recommended): [Download RecordFlow-setup.exe](https://github.com/Waqar-743/Screen-and-Camera-Recording-app/releases/latest/download/RecordFlow-setup.exe)
-- Windows (MSI): [Download RecordFlow.msi](https://github.com/Waqar-743/Screen-and-Camera-Recording-app/releases/latest/download/RecordFlow.msi)
+- Windows (recommended): [Download tauri-02_0.1.0_x64-setup.exe](https://github.com/Waqar-743/Screen-and-Camera-Recording-app/releases/latest/download/tauri-02_0.1.0_x64-setup.exe)
+- Windows (MSI): [Download tauri-02_0.1.0_x64_en-US.msi](https://github.com/Waqar-743/Screen-and-Camera-Recording-app/releases/latest/download/tauri-02_0.1.0_x64_en-US.msi)
 
-Note: these are **direct download** links and will work once you publish a GitHub Release and upload the installers with the exact filenames above (this repo currently has no Releases).
+Note: these are **direct download** links and will work once you upload the installers to the GitHub Release as assets.
 
 ## Features
 
